@@ -155,7 +155,6 @@ with stream.expander("Parâmetros de Supply Chain"):
 
 #PARAMETERS OF SUPPLY
 
-SIZE_FORECAST = 1000
 LEADTIME_ERROR = 0
 
 with stream.expander("Parâmetros de Demanda"):
@@ -182,13 +181,23 @@ with stream.expander("Parâmetros de Financeiros"):
     MARKUP = stream.slider('MARKUP', min_value=0.0, max_value=5.0, value=3.5, step = 0.5, help='Markup dos produtos')
     COST_OF_GOODS_PERC = stream.slider('% COST RM', min_value=0.0, max_value=1.0, value=0.7, step = 0.1, help='% do custo de matéria prima no custo total')
 
+
 TOTAL_COST = PRICE/MARKUP
 COST_OF_GOODS = COST_OF_GOODS_PERC*TOTAL_COST
 COST_OF_LABOR = (1-COST_OF_GOODS_PERC)*TOTAL_COST
 
-#PARAMETERS OF SIMULATION
-N_MAX_ORDERS = 10
-TIME_RANGE = 1000
+
+#PARAMETERS OF FINANCE
+with stream.expander("Parâmetros de Simulação"):
+    stream.write("""
+        Variáveis associadas aos parâmetros para execução da simulação
+    """)
+
+    N_MAX_ORDERS = stream.slider('N_MAX_ORDERS', min_value=2, max_value=10, value=5, step = 1, help='Quantidade Máxima de pedidos para serem simulados para o futuro')
+    TIME_RANGE = stream.slider('TIME_RANGE', min_value=150, max_value=2000, value=1000, step = 50, help='Avanço máximo, em dias, no futuro')
+
+
+SIZE_FORECAST = N_MAX_ORDERS
 
 dataframe_forecast, real_sales = generate_forecast_(MEAN_DEMAND = MEAN_DEMAND,
                                                      STD_DEMAND = STD_DEMAND,
@@ -213,9 +222,16 @@ ORDER_BACKLOG_VEC = []
 ZETA = st.norm.ppf(SERVICE_LEVEL/100)
 SAFETY_STOCK = ZETA*math.sqrt(LT1+LT2)*STD_DEMAND# + (LT1+LT2)*MEAN_DEMAND
 
+stream.write("""
+        Progresso da Simulação
+    """)
+my_bar = stream.progress(0.0)
+
 n_orders_ = 0
 while(n_orders_<=N_MAX_ORDERS):
     print("At order n_ : {}".format(n_orders_))
+
+    my_bar.progress(n_orders_/N_MAX_ORDERS)
     dataframe_stock_simulation, dataframe_cashflow_simulation  = get_cashflow_and_stock_sim(stock_map_dataframe, pay_dataframe, TIME_RANGE = TIME_RANGE, flag_backtest=True)
 
     first_rupture_dataframe = dataframe_stock_simulation[(dataframe_stock_simulation['data_sim']>=date.today()+timedelta(days=LT1+LT2)) &
